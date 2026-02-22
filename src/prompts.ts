@@ -40,6 +40,14 @@ Given a recipe with ingredients and cooking instructions, translate it into a Th
 - "Cook on medium heat" → 100°C, snelheid 1
 - "Cook on low heat" → 80-90°C, snelheid 1
 
+### Blade Direction (Reverse / CCW)
+- Normal: blade turns clockwise (cuts and mixes)
+- Reverse (CCW): blade turns counter-clockwise — gentle stirring without cutting. Use for:
+  - Risotto, rice dishes, grains that must stay intact
+  - Simmering stews with whole or partly intact ingredients
+  - Delicate sauces where you only want to stir
+- Notation: use the reverse-arrow symbol ⟲ (U+21B6) between slashes: \`X min/Y°C/⟲/snelheid Z\`. The system converts it to the Cookidoo API format (U+E003). Always set direction: "CCW" in the TTS annotation when using reverse.
+
 ### Instruction Notation Format
 The Thermomix notation in Dutch uses: \`X min/Y°C/snelheid Z\` or \`X sec/snelheid Z\`
 Examples:
@@ -47,6 +55,7 @@ Examples:
 - "30 sec/snelheid 10" (blend for 30 seconds at speed 10)
 - "5 sec/snelheid 5" (chop for 5 seconds at speed 5)
 - "15 min/Varoma/snelheid 1" (steam for 15 min at Varoma, speed 1)
+- "20 min/100°C/⟲/snelheid 1" (simmer risotto, reverse blade — use ⟲ symbol and direction: CCW in the TTS annotation)
 
 ## Output Requirements
 

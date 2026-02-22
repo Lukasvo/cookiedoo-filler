@@ -19,6 +19,12 @@ const TTSDataSchema = z.object({
     })
     .nullable()
     .describe("null if no heat is needed"),
+  direction: z
+    .literal("CCW")
+    .nullable()
+    .describe(
+      "Set to CCW (counter-clockwise/reverse) for gentle stirring without cutting: risotto, simmering rice/grains, delicate sauces. null otherwise"
+    ),
 });
 
 const AnnotationOutputSchema = z.object({
@@ -58,9 +64,14 @@ const TranslatedRecipeSchema = z.object({
 
 type TranslatedRecipe = z.infer<typeof TranslatedRecipeSchema>;
 
-// Regex matching TTS notation patterns like "10 min/100°C/snelheid 1" or "30 sec/snelheid 10"
+// Cookidoo uses U+E003 (Private Use Area) for the reverse blade symbol. LLMs typically output
+// ⟲ (U+21B6) instead; we substitute it when building the Cookidoo payload.
+export const REVERSE_BLADE_CHAR = "\uE003"; // Cookidoo API format
+
+// Regex matching TTS notation: "10 min/100°C/snelheid 1", "30 sec/snelheid 10",
+// "20 min/100°C/⟲/snelheid 1" or "20 min/100°C/\uE003/snelheid 1" (reverse)
 const TTS_PATTERN =
-  /\d+\s*(?:min|sec)\/(?:\d+°C\/|[Vv]aroma\/)?snelheid\s*\d+(?:\.\d+)?/g;
+  /\d+(?:-\d+)?\s*(?:min|sec)\/(?:\d+°C\/|[Vv]aroma\/)?[\uE003\u21b6]\/snelheid\s*[\d.]+/g;
 
 /**
  * LLMs can't count character positions reliably. This function finds the actual
@@ -137,7 +148,7 @@ function toCookidooPatch(translated: TranslatedRecipe): PatchRecipeRequest {
 
   const instructions: Instruction[] = translated.instructions.map((step) => ({
     type: "STEP" as const,
-    text: step.text,
+    text: step.text.replace(/\u21b6/g, REVERSE_BLADE_CHAR), // ⟲ → U+E003 (Cookidoo API)
     annotations:
       step.annotations.length > 0
         ? step.annotations.map((a) => ({
@@ -148,6 +159,7 @@ function toCookidooPatch(translated: TranslatedRecipe): PatchRecipeRequest {
               ...(a.data.temperature
                 ? { temperature: a.data.temperature }
                 : {}),
+              ...(a.data.direction ? { direction: a.data.direction } : {}),
             },
             position: a.position,
           }))

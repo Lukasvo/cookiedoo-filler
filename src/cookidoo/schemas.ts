@@ -28,6 +28,7 @@ export const TTSAnnotationSchema = z.object({
     speed: z.string(), // "1" to "10"
     time: z.number().int().nonnegative(), // seconds
     temperature: TemperatureSchema.optional(),
+    direction: z.literal("CCW").optional(), // reverse / counter-clockwise (e.g. risotto, gentle stirring)
   }),
   position: PositionSchema,
 });
