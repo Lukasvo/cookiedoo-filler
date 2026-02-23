@@ -45,7 +45,8 @@ Flow:
 1. Scrapes the recipe from Deliciously Ella
 2. Translates to Thermomix TM6 format (Dutch, metric units, TTS annotations)
 3. Shows a preview and asks for confirmation
-4. Logs in to Cookidoo, creates a blank recipe, fills it, and optionally uploads the image
+4. Checks if this URL was imported before (see [Upsert / deduplication](#upsert--deduplication))
+5. Logs in to Cookidoo, creates or updates the recipe, and optionally uploads the image
 
 ### Bulk import (non-interactive)
 
@@ -60,7 +61,8 @@ npm run bulk "https://deliciouslyella.com/recipes/creamy-mushroom-pasta,https://
 ```
 
 - Logs in once, then imports each recipe in sequence
-- Skips confirmation; reports success/failure per recipe and a final summary
+- Automatically updates existing recipes instead of creating duplicates
+- Reports created/updated per recipe and a final summary
 
 ---
 
@@ -73,11 +75,33 @@ src/
 ├── scraper.ts      # Deliciously Ella JSON-LD scraper
 ├── translator.ts   # LLM → Thermomix TM6 translator
 ├── prompts.ts      # System prompt for translation
+├── cache.ts        # Local cache for upsert (source URL → recipe ID)
 └── cookidoo/
     ├── auth.ts     # CIAM OAuth2 login
     ├── client.ts   # Cookidoo API client
     └── schemas.ts  # Zod schemas for requests/responses
 ```
+
+---
+
+## Upsert / Deduplication
+
+Re-importing the same URL updates the existing recipe instead of creating a duplicate. This works via two mechanisms:
+
+1. **Local cache** (`.cookidoo-cache.json`, gitignored) — maps source URLs to Cookidoo recipe IDs for fast lookup.
+2. **`hints` field** (Cookidoo's notes) — stores `Bron: <source-url>` on the server as a human-readable breadcrumb.
+
+**Flow on import:**
+
+1. Look up the source URL in the local cache
+2. If found, verify the recipe still exists on Cookidoo (`GET /created-recipes/nl-BE/{id}`)
+3. If it exists → PATCH update the existing recipe
+4. If not found or deleted → POST create a new recipe and update the cache
+
+**Edge cases:**
+
+- If you delete a recipe on Cookidoo manually, the next import will create a fresh one and update the cache.
+- The cache is per-machine. If you switch machines, the first import of each URL will create new recipes. You can copy `.cookidoo-cache.json` between machines to avoid this.
 
 ---
 
@@ -179,6 +203,7 @@ PATCH /created-recipes/nl-BE/{recipeId}
   "totalTime": 3600,
   "prepTime": 900,
   "yield": { "value": 4, "unitText": "portion" },
+  "hints": "Bron: https://deliciouslyella.com/recipes/creamy-mushroom-pasta",
   "ingredients": [
     { "type": "INGREDIENT", "text": "200 g cashewnoten" }
   ],

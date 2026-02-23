@@ -98,6 +98,35 @@ export class CookidooClient {
     };
   }
 
+  async recipeExists(recipeId: string): Promise<boolean> {
+    const res = await fetch(
+      `${BASE_URL}/created-recipes/${LOCALE}/${recipeId}`,
+      {
+        method: "GET",
+        headers: this.baseHeaders,
+      }
+    );
+    return res.ok;
+  }
+
+  async getRecipe(recipeId: string): Promise<PatchRecipeResponse> {
+    const res = await fetch(
+      `${BASE_URL}/created-recipes/${LOCALE}/${recipeId}`,
+      {
+        method: "GET",
+        headers: this.baseHeaders,
+      }
+    );
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(
+        `Cookidoo GET recipe failed (${res.status}): ${text}`
+      );
+    }
+    const json = await res.json();
+    return PatchRecipeResponseSchema.parse(json);
+  }
+
   async createRecipe(
     request: CreateRecipeRequest
   ): Promise<CreateRecipeResponse> {

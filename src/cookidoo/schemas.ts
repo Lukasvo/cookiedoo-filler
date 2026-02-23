@@ -84,11 +84,20 @@ export const PatchRecipeRequestSchema = z.object({
   instructions: z.array(InstructionSchema).optional(),
   image: z.string().optional(),
   isImageOwnedByUser: z.boolean().optional(),
+  hints: z.string().optional(), // notes field — used to store source URL for upsert
 });
 
 // ---------------------------------------------------------------------------
 // API Response schemas
 // ---------------------------------------------------------------------------
+
+const ResponseAnnotationSchema = z
+  .object({
+    type: z.string(),
+    data: z.record(z.string(), z.unknown()),
+    position: PositionSchema,
+  })
+  .passthrough();
 
 export const RecipeContentResponseSchema = z.object({
   name: z.string(),
@@ -96,7 +105,10 @@ export const RecipeContentResponseSchema = z.object({
   ingredients: z.array(IngredientSchema).optional(),
   instructions: z
     .array(
-      InstructionSchema.extend({
+      z.object({
+        type: z.literal("STEP"),
+        text: z.string(),
+        annotations: z.array(ResponseAnnotationSchema).optional(),
         missedUsages: z.array(z.unknown()).optional(),
       })
     )
@@ -110,6 +122,7 @@ export const RecipeContentResponseSchema = z.object({
   tool: z.array(z.string()).optional(),
   tools: z.array(z.string()).optional(),
   yield: YieldSchema.optional(),
+  hints: z.string().optional(),
 });
 
 export const CreateRecipeResponseSchema = z.object({

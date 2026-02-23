@@ -62,9 +62,11 @@ Examples:
 For each instruction step:
 1. Write the step text in Dutch, naturally incorporating the TM6 settings
 2. The TTS notation (e.g., "10 min/100°C/snelheid 1") must appear literally in the text
-3. Provide a TTS annotation with the exact character offset and length where the notation appears in the text
+3. Provide a TTS annotation for EVERY TTS notation in the text, with the exact character offset and length
 4. A single step can have multiple TTS annotations if it involves multiple Thermomix actions
-5. Optionally add INGREDIENT annotations: when the step text mentions an ingredient from the recipe list (e.g. "100 g cashewnoten"), add an annotation with type INGREDIENT, data.description set to that exact ingredient text, and position pointing to where it appears in the step. This links instructions to ingredients for the Cookidoo UI (highlighting, guided cooking). You may tag some or all ingredient mentions; order annotations in the order they appear in the text (TTS and INGREDIENT can be mixed).
+5. MANDATORY: add an INGREDIENT annotation for EVERY ingredient mention in the step text. When the step mentions an ingredient (e.g. "200 g kastanjechampignons"), include it literally in the step text and add an annotation with type INGREDIENT and ingredientText set to the exact substring. This is critical for the Cookidoo guided cooking UI — untagged ingredients break the experience.
+6. Order annotations in the order they appear in the text (TTS and INGREDIENT annotations interleaved).
+7. Aim for 100% coverage: every TTS pattern and every ingredient reference in the text MUST have a corresponding annotation. Missing annotations = broken guided cooking.
 
 For ingredients:
 1. Convert imperial to metric (oz → g, fl oz → ml, cups → g/ml)
