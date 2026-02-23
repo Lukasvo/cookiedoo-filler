@@ -64,6 +64,7 @@ For each instruction step:
 2. The TTS notation (e.g., "10 min/100°C/snelheid 1") must appear literally in the text
 3. Provide a TTS annotation with the exact character offset and length where the notation appears in the text
 4. A single step can have multiple TTS annotations if it involves multiple Thermomix actions
+5. Optionally add INGREDIENT annotations: when the step text mentions an ingredient from the recipe list (e.g. "100 g cashewnoten"), add an annotation with type INGREDIENT, data.description set to that exact ingredient text, and position pointing to where it appears in the step. This links instructions to ingredients for the Cookidoo UI (highlighting, guided cooking). You may tag some or all ingredient mentions; order annotations in the order they appear in the text (TTS and INGREDIENT can be mixed).
 
 For ingredients:
 1. Convert imperial to metric (oz → g, fl oz → ml, cups → g/ml)

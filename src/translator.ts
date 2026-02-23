@@ -27,7 +27,7 @@ const TTSDataSchema = z.object({
     ),
 });
 
-const AnnotationOutputSchema = z.object({
+const TTSAnnotationOutputSchema = z.object({
   type: z.literal("TTS"),
   data: TTSDataSchema,
   position: z.object({
@@ -35,6 +35,26 @@ const AnnotationOutputSchema = z.object({
     length: z.number().int().describe("Length of the TTS notation in the text"),
   }),
 });
+
+const IngredientAnnotationOutputSchema = z.object({
+  type: z.literal("INGREDIENT"),
+  data: z.object({
+    description: z
+      .string()
+      .describe(
+        "Exact ingredient text as in the recipe ingredients list (e.g. '100 g cashewnoten')"
+      ),
+  }),
+  position: z.object({
+    offset: z.number().int().describe("Character offset where ingredient appears"),
+    length: z.number().int().describe("Length of the ingredient mention in the text"),
+  }),
+});
+
+const AnnotationOutputSchema = z.discriminatedUnion("type", [
+  TTSAnnotationOutputSchema,
+  IngredientAnnotationOutputSchema,
+]);
 
 const TranslatedRecipeSchema = z.object({
   name: z.string().describe("Recipe name in Dutch"),
@@ -54,7 +74,9 @@ const TranslatedRecipeSchema = z.object({
         ),
       annotations: z
         .array(AnnotationOutputSchema)
-        .describe("TTS annotations matching the notation in the text"),
+        .describe(
+          "TTS annotations for Thermomix settings and optional INGREDIENT annotations where step text mentions an ingredient from the list"
+        ),
     })
   ),
   totalTimeSeconds: z.number().int().describe("Total time in seconds"),
@@ -75,7 +97,7 @@ const TTS_PATTERN =
 
 /**
  * LLMs can't count character positions reliably. This function finds the actual
- * TTS notation strings in the step text and corrects annotation offsets/lengths.
+ * TTS notation and ingredient mentions in the step text and corrects annotation positions.
  */
 function fixAnnotationPositions(
   steps: TranslatedRecipe["instructions"]
@@ -83,24 +105,32 @@ function fixAnnotationPositions(
   return steps.map((step) => {
     if (!step.annotations.length) return step;
 
-    const matches = [...step.text.matchAll(TTS_PATTERN)];
-    if (matches.length === 0) {
-      return { ...step, annotations: [] };
-    }
+    const ttsMatches = [...step.text.matchAll(TTS_PATTERN)];
+    let ttsIndex = 0;
+    const searchFromByDescription = new Map<string, number>();
 
     const fixedAnnotations = step.annotations
-      .map((ann, i) => {
-        const match = matches[i];
-        if (!match || match.index === undefined) return null;
+      .map((ann) => {
+        if (ann.type === "TTS") {
+          const match = ttsMatches[ttsIndex++];
+          if (!match || match.index === undefined) return null;
+          return {
+            ...ann,
+            position: { offset: match.index, length: match[0].length },
+          };
+        }
+        // INGREDIENT: find description in step text (support duplicate mentions)
+        const desc = ann.data.description;
+        const from = searchFromByDescription.get(desc) ?? 0;
+        const idx = step.text.indexOf(desc, from);
+        if (idx === -1) return null;
+        searchFromByDescription.set(desc, idx + desc.length);
         return {
           ...ann,
-          position: {
-            offset: match.index,
-            length: match[0].length,
-          },
+          position: { offset: idx, length: desc.length },
         };
       })
-      .filter((a) => a !== null);
+      .filter((a): a is NonNullable<typeof a> => a !== null);
 
     return { ...step, annotations: fixedAnnotations };
   });
@@ -151,18 +181,26 @@ function toCookidooPatch(translated: TranslatedRecipe): PatchRecipeRequest {
     text: step.text.replace(/\u21b6/g, REVERSE_BLADE_CHAR), // ⟲ → U+E003 (Cookidoo API)
     annotations:
       step.annotations.length > 0
-        ? step.annotations.map((a) => ({
-            type: "TTS" as const,
-            data: {
-              speed: a.data.speed,
-              time: a.data.time,
-              ...(a.data.temperature
-                ? { temperature: a.data.temperature }
-                : {}),
-              ...(a.data.direction ? { direction: a.data.direction } : {}),
-            },
-            position: a.position,
-          }))
+        ? step.annotations.map((a) =>
+            a.type === "TTS"
+              ? {
+                  type: "TTS" as const,
+                  data: {
+                    speed: a.data.speed,
+                    time: a.data.time,
+                    ...(a.data.temperature
+                      ? { temperature: a.data.temperature }
+                      : {}),
+                    ...(a.data.direction ? { direction: a.data.direction } : {}),
+                  },
+                  position: a.position,
+                }
+              : {
+                  type: "INGREDIENT" as const,
+                  data: { description: a.data.description },
+                  position: a.position,
+                }
+          )
         : undefined,
   }));
 

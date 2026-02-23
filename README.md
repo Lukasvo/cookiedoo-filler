@@ -202,12 +202,21 @@ PATCH /created-recipes/nl-BE/{recipeId}
 }
 ```
 
+**Annotations** on instructions can be **TTS** (Time/Temperature/Speed) or **INGREDIENT**:
+
 **TTS annotation (Time/Temperature/Speed):**
 
 - `speed`: `"1"`–`"10"`
 - `time`: duration in seconds
 - `temperature`: `{ "value": "100", "unit": "C" }` or omit for no heat
 - `direction`: `"CCW"` (counter-clockwise / reverse blade) — for risotto, simmering, gentle stirring
+
+**INGREDIENT annotation (tagging ingredients in steps):**
+
+- Links a span of text in the step to an ingredient from the recipe list.
+- Purpose: Cookidoo uses these to highlight ingredients in the instructions, support guided cooking, and keep step mentions in sync with the ingredients list (e.g. when scaling).
+- Format: `{ "type": "INGREDIENT", "data": { "description": "100 g cashewnoten" }, "position": { "offset": 21, "length": 17 } }`
+- `description` must match the ingredient text exactly (as in the recipe’s `ingredients` array). `position` is the character range in the step text where that ingredient is mentioned.
 
 **Reverse blade symbol in step text:**
 
